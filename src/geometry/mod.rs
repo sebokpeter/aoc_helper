@@ -1,6 +1,5 @@
 #![allow(dead_code)]
-use std::ops::{Add, Mul, Sub, Div};
-use num_traits::{Num, Pow, FromPrimitive};
+use num_traits::{Num, Pow, PrimInt, Signed};
 
 /// Represents a point in two dimensional space. The type of T indicates the type of the x and y coordinates. If all the points are located at integer coordinates, T will most likely be an integer type (e.g. [`i32`], [`isize`], [`u32`] or [`usize`]).
 /// 
@@ -16,10 +15,8 @@ use num_traits::{Num, Pow, FromPrimitive};
 /// let p3 = Point2D {x: 5.0, y: 6.0};
 /// 
 /// ```
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Point2D<T> 
-where
-    T: Num,
 {
     pub x: T,
     pub y: T
@@ -27,7 +24,7 @@ where
 
 impl<T> Point2D<T> 
 where
-    T: Num + PartialEq + PartialOrd + Ord + FromPrimitive + Add<T, Output = T> + Mul<T, Output = T> + Sub<T, Output = T> + Div<T, Output = T> + Copy,
+    T: Num
 {
     /// Creates a new [`Point2D<T>`].
     pub fn new(x: T, y: T) -> Point2D<T> {
@@ -54,6 +51,7 @@ where
     /// ```
     pub fn eucledian_distance_to(&self, other: &Point2D<T>) -> f64 
     where
+        T: Clone + Copy,
         f64: From::<T>
     {
         let lhs = f64::from(self.x - other.x).pow(2);
@@ -61,14 +59,10 @@ where
         let res: f64 = lhs + rhs;
         res.sqrt()
     }
-}
 
-impl Point2D<isize>
-{   
-    
     /// Returns the distance to the other [`Point2D`] measured along axes at right angles.
     /// In other words, it returns the sum of distances between the x and y coordinates.
-    /// This function requires T to be [`isize`].
+    /// T must be a signed type.
     /// 
     /// # Arguments:
     /// 
@@ -83,7 +77,10 @@ impl Point2D<isize>
     /// 
     /// assert_eq!(6, p1.mannhattan_distance_to(&p2));
     /// ```
-    pub fn mannhattan_distance_to(&self, other: &Point2D<isize>) -> isize {
+    pub fn mannhattan_distance_to(&self, other: &Point2D<T>) -> T 
+    where
+        T: PrimInt + Signed
+    {
         (self.x - other.x).abs() + (self.y - other.y).abs()
     }
 }
@@ -120,5 +117,13 @@ mod test {
         let actual_2 = p3.mannhattan_distance_to(&p4);
 
         assert_eq!(expected_2, actual_2);
+    }
+
+    #[test]
+    fn equal_works() {
+        let p1 = Point2D {x: 42, y: 42};
+        let p2 = Point2D { x: 42, y: 42};
+
+        assert_eq!(p1, p2);
     }
 }
