@@ -47,7 +47,32 @@ where
 {
     let input = fs::read_to_string(file_path).map_err(|err| PuzzleParseError {msg: err.to_string()})?;
 
-    T::from_str(input.as_str()).map_err(|_| PuzzleParseError {msg: String::from("Could not parse str!")})
+    T::from_str(&input).map_err(|_| PuzzleParseError {msg: String::from("Could not parse str!")})
+}
+
+
+/// Convenience function that reads in a [`PuzzleInput`] from "example.txt".
+///
+/// # Errors
+///
+/// This function will return an error if there is no "example.txt", or if the parsing fails.
+pub fn read_example<T>() -> Result<T, PuzzleParseError>
+where
+    T: PuzzleInput
+{
+    read_puzzle_input("example.txt")
+}
+
+/// Convenience function that reads in a [`PuzzleInput`] from "input.txt".
+///
+/// # Errors
+///
+/// This function will return an error if there is no "input.txt", or if the parsing fails.
+pub fn read_input<T>() -> Result<T, PuzzleParseError>
+where
+    T: PuzzleInput
+{
+    read_puzzle_input("input.txt")
 }
 
 

@@ -1,6 +1,6 @@
 use super::{Direction, relative_direction::RelativeDirection};
 
-/// Four main directions: North, East, Sout, West.
+/// Four main directions: North, East, South, West.
 /// These enums can be used in, for example, a 2D grid to get the positions of elements relative to each other (e.g. point (0,0) is to the North of point (1,0)).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum CardinalDirection {

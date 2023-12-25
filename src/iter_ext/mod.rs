@@ -29,7 +29,7 @@ pub trait IterExt : Iterator {
     }
 
 
-    /// Convinience function to collect self into a Vec.
+    /// Convenience function to collect self into a Vec.
     /// 
     /// # Example:
     /// 
