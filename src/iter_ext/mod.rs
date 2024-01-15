@@ -64,7 +64,7 @@ pub trait IterExt : Iterator {
         Self: Sized,
         T: Sized
     {
-        self.map(|e| map_fn(e)).collect_vec()
+        self.map(map_fn).collect_vec()
     }
 }
 
