@@ -1,3 +1,7 @@
+use std::collections::HashMap;
+
+use priority_queue::PriorityQueue;
+
 use super::Graph;
 
 // An implementation of a graph datastructure, using vectors to store nodes and edges.
@@ -58,6 +62,59 @@ impl<T> Graph for VecGraph<T> {
             panic!("Node not found!");
         }
     }
+
+    fn dijkstra<F>(&self, start: Self::NodeReference, target: Self::NodeReference, cost_fn: F) -> Vec<Self::NodeReference>
+        where F: Fn(&Self::DataType) -> usize
+    {
+        let mut frontier = PriorityQueue::new();
+        frontier.push(start, 0);
+
+        let mut came_from = HashMap::new();
+        came_from.insert(start, start);
+
+        let mut cost_so_far = HashMap::new();
+        cost_so_far.insert(start, 0);
+
+        while !frontier.is_empty() {
+            let (current, _) = frontier.pop().unwrap();
+
+            if current == target {
+                break;
+            }
+
+            for next in self.successors(current) {
+                let data = self.get_data(next);
+                let new_cost = cost_fn(data) + cost_so_far[&current];
+
+                if !cost_so_far.contains_key(&next) || new_cost < cost_so_far[&next] {
+                    cost_so_far.insert(next, new_cost);
+                    came_from.insert(next, current);
+                    frontier.push(next, new_cost);
+                }
+            }
+        }
+
+        reconstruct_path(came_from, start, target)
+    }
+}
+
+fn reconstruct_path(came_from: HashMap<NodeIndex, NodeIndex>, start: NodeIndex, target: NodeIndex) -> Vec<NodeIndex> {
+    let mut path = Vec::new();
+    let mut current = target;
+
+    if !came_from.contains_key(&target) {
+        return path;
+    }
+
+    while current != start {
+        path.push(current);
+        current = came_from[&current];
+    }
+
+    path.push(start);
+    path.reverse();
+
+    path
 }
 
 impl<T> Default for VecGraph<T> {
@@ -85,6 +142,15 @@ impl<'graph, T> Iterator for Successors<'graph, T> {
 }
 
 impl<T> VecGraph<T> {
+
+    /// Return a [`Successors`] that can be used to iterate over the nodes that are connected to 'source'.
+    ///
+    /// # Arguments
+    ///  * 'source' - The source node.
+    /// 
+    /// # Panics
+    ///
+    /// Panics if 'source' contains an index that does not correspond to an existing node.
     pub fn successors(&self, source: NodeIndex) -> Successors<T> {
         if let Some(n) = self.nodes.get(source.0) {
             Successors { graph: self, current_edge_index: n.first_outgoing_edge}
@@ -94,10 +160,10 @@ impl<T> VecGraph<T> {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct NodeIndex(pub usize);
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct NodeIndex(usize);
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct EdgeIndex(usize);
+pub struct EdgeIndex(pub usize);
 
 #[derive(Clone)]
 struct NodeData<T> {
@@ -162,5 +228,36 @@ pub mod test {
         assert!(s1.len() == 4);
         let values = s1.iter().map(|i| *grid.get_data(*i)).collect::<Vec<_>>();
         assert_eq!(&values, &["four", "three", "two", "one"]);
+    }
+
+    #[test]
+    fn simple_dijkstra_works() {
+        let mut graph : VecGraph<usize> = VecGraph::new();
+    
+        let n0 = graph.add_node(0);
+        let n1 = graph.add_node(1);
+        let n2 = graph.add_node(2);
+        let n3 = graph.add_node(3);
+        let n4 = graph.add_node(4);
+
+        graph.add_edge(n0, n1);
+        graph.add_edge(n1, n0);
+        graph.add_edge(n1, n2);
+        graph.add_edge(n2, n3);
+        graph.add_edge(n3, n4);
+
+        let path = graph.dijkstra(n0, n4, |&v| v);
+
+        assert_eq!(&path, &[n0, n1, n2, n3, n4]);
+
+        graph.add_edge(n0, n3);
+
+        let path = graph.dijkstra(n0, n4, |&v| v);
+        assert_eq!(&path, &[n0, n3, n4]);
+
+        graph.add_edge(n0, n4);
+        
+        let path = graph.dijkstra(n0, n4, |&v| v);
+        assert_eq!(&path, &[n0, n4]);
     }
 }

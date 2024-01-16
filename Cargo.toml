@@ -8,3 +8,4 @@ description = "Helper enums, structs, and methods for solving Advent of Code."
 
 [dependencies]
 num-traits = "0.2.17"
+priority-queue = "1.3.2"
