@@ -1,6 +1,5 @@
 use std::collections::HashMap;
-
-use priority_queue::PriorityQueue;
+use priority_queue::DoublePriorityQueue;
 
 use super::Graph;
 
@@ -55,7 +54,7 @@ impl<T> Graph for VecGraph<T> {
         source_node.first_outgoing_edge = Some(EdgeIndex(edge_index));
     }
 
-    fn get_data(&self, node: Self::NodeReference) -> &Self::DataType {
+    fn get_data(&self, node: &Self::NodeReference) -> &Self::DataType {
         if let Some(node_data) = self.nodes.get(node.0) {
             &node_data.data
         } else {
@@ -66,7 +65,7 @@ impl<T> Graph for VecGraph<T> {
     fn dijkstra<F>(&self, start: Self::NodeReference, target: Self::NodeReference, cost_fn: F) -> Vec<Self::NodeReference>
         where F: Fn(&Self::DataType) -> usize
     {
-        let mut frontier = PriorityQueue::new();
+        let mut frontier = DoublePriorityQueue::new();
         frontier.push(start, 0);
 
         let mut came_from = HashMap::new();
@@ -76,14 +75,15 @@ impl<T> Graph for VecGraph<T> {
         cost_so_far.insert(start, 0);
 
         while !frontier.is_empty() {
-            let (current, _) = frontier.pop().unwrap();
+            let (current, _) = frontier.pop_min().unwrap();
 
             if current == target {
                 break;
             }
 
+            //for next in self.successors(current) {
             for next in self.successors(current) {
-                let data = self.get_data(next);
+                let data = self.get_data(&next);
                 let new_cost = cost_fn(data) + cost_so_far[&current];
 
                 if !cost_so_far.contains_key(&next) || new_cost < cost_so_far[&next] {
@@ -226,7 +226,7 @@ pub mod test {
 
         let s1 = grid.successors(n0).collect::<Vec<_>>();
         assert!(s1.len() == 4);
-        let values = s1.iter().map(|i| *grid.get_data(*i)).collect::<Vec<_>>();
+        let values = s1.iter().map(|i| *grid.get_data(i)).collect::<Vec<_>>();
         assert_eq!(&values, &["four", "three", "two", "one"]);
     }
 
