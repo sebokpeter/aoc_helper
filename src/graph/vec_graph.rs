@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use priority_queue::DoublePriorityQueue;
 
-use super::Graph;
+use super::{Graph, EdgeIndex, NodeIndex, NodeData, EdgeData};
 
 // An implementation of a graph datastructure, using vectors to store nodes and edges.
 // Based on: https://smallcultfollowing.com/babysteps/blog/2015/04/06/modeling-graphs-in-rust-using-vector-indices/
@@ -63,7 +63,8 @@ impl<T> Graph for VecGraph<T> {
     }
 
     fn dijkstra<F>(&self, start: Self::NodeReference, target: Self::NodeReference, cost_fn: F) -> Vec<Self::NodeReference>
-        where F: Fn(&Self::DataType) -> usize
+    where 
+        F: Fn(&Self::DataType) -> usize
     {
         let mut frontier = DoublePriorityQueue::new();
         frontier.push(start, 0);
@@ -81,7 +82,6 @@ impl<T> Graph for VecGraph<T> {
                 break;
             }
 
-            //for next in self.successors(current) {
             for next in self.successors(current) {
                 let data = self.get_data(&next);
                 let new_cost = cost_fn(data) + cost_so_far[&current];
@@ -123,24 +123,6 @@ impl<T> Default for VecGraph<T> {
     }
 }
 
-impl<'graph, T> Iterator for Successors<'graph, T> {
-    type Item = NodeIndex;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match &self.current_edge_index {
-            Some(edge_index) => {
-                if let Some(edge) = self.graph.edges.get(edge_index.0) {
-                    self.current_edge_index = edge.next_outgoing_edge;
-                    Some(edge.target)
-                } else {
-                    panic!("Edge not found!");
-                }
-            },
-            None => None
-        }
-    }
-}
-
 impl<T> VecGraph<T> {
 
     /// Return a [`Successors`] that can be used to iterate over the nodes that are connected to 'source'.
@@ -160,26 +142,29 @@ impl<T> VecGraph<T> {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct NodeIndex(pub usize);
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct EdgeIndex(pub usize);
+impl<'graph, T> Iterator for Successors<'graph, T> {
+    type Item = NodeIndex;
 
-#[derive(Clone)]
-struct NodeData<T> {
-    data: T,
-    first_outgoing_edge: Option<EdgeIndex>,
-}
-
-struct EdgeData {
-    target: NodeIndex,
-    next_outgoing_edge: Option<EdgeIndex>,
+    fn next(&mut self) -> Option<Self::Item> {
+        match &self.current_edge_index {
+            Some(edge_index) => {
+                if let Some(edge) = self.graph.edges.get(edge_index.0) {
+                    self.current_edge_index = edge.next_outgoing_edge;
+                    Some(edge.target)
+                } else {
+                    panic!("Edge not found!");
+                }
+            },
+            None => None
+        }
+    }
 }
 
 pub struct Successors<'graph, T> {
     graph: &'graph VecGraph<T>,
     current_edge_index: Option<EdgeIndex>
 }
+
 
 #[cfg(test)]
 pub mod test {
