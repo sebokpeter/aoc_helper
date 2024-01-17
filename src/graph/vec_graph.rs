@@ -1,7 +1,9 @@
-use std::collections::HashMap;
 use priority_queue::DoublePriorityQueue;
+use std::collections::HashMap;
 
-use super::{Graph, EdgeIndex, NodeIndex, NodeData, EdgeData};
+use crate::iter_ext::IterExt;
+
+use super::{EdgeData, EdgeIndex, Graph, NodeData, NodeIndex};
 
 // An implementation of a graph datastructure, using vectors to store nodes and edges.
 // Based on: https://smallcultfollowing.com/babysteps/blog/2015/04/06/modeling-graphs-in-rust-using-vector-indices/
@@ -29,6 +31,7 @@ impl<T> Graph for VecGraph<T> {
         let index = self.nodes.len();
         self.nodes.push(NodeData {
             data,
+            index: NodeIndex(index),
             first_outgoing_edge: None,
         });
         NodeIndex(index)
@@ -62,9 +65,14 @@ impl<T> Graph for VecGraph<T> {
         }
     }
 
-    fn dijkstra<F>(&self, start: Self::NodeReference, target: Self::NodeReference, cost_fn: F) -> Vec<Self::NodeReference>
-    where 
-        F: Fn(&Self::DataType) -> usize
+    fn dijkstra<F>(
+        &self,
+        start: Self::NodeReference,
+        target: Self::NodeReference,
+        cost_fn: F,
+    ) -> Vec<Self::NodeReference>
+    where
+        F: Fn(&Self::DataType) -> usize,
     {
         let mut frontier = DoublePriorityQueue::new();
         frontier.push(start, 0);
@@ -96,9 +104,66 @@ impl<T> Graph for VecGraph<T> {
 
         reconstruct_path(came_from, start, target)
     }
+
+    fn dijkstra_search_with_delegate<S, D, C>(
+        &self,
+        frontier_fn: S,
+        target_fn: D,
+        cost_fn: C,
+    ) -> Vec<Self::NodeReference>
+    where
+        S: Fn(&Self::DataType) -> bool,
+        D: Fn(&Self::DataType) -> bool,
+        C: Fn(&Self::DataType) -> usize,
+    {
+        let frontier_indices = self.nodes.iter().filter(|n| frontier_fn(&n.data)).map(|n| n.index).collect_vec();
+
+        let mut frontier = DoublePriorityQueue::new();
+        frontier_indices.iter().for_each(|i| {
+            frontier.push(*i, 0);
+        });
+
+        let mut came_from = HashMap::new();
+        frontier_indices.iter().for_each(|i| {
+            came_from.insert(*i, *i);
+        });
+
+        let mut cost_so_far = HashMap::new();
+        frontier_indices.iter().for_each(|i| {
+            cost_so_far.insert(*i, 0);
+        });
+
+        let mut target = None;
+
+        while !frontier.is_empty() {
+            let (current, _) = frontier.pop_min().unwrap();
+
+            if target_fn(self.get_data(&current)) {
+                target = Some(current);
+                break;
+            }
+
+            for next in self.successors(current) {
+                let data = self.get_data(&next);
+                let new_cost = cost_fn(data) + cost_so_far[&current];
+
+                if !cost_so_far.contains_key(&next) || new_cost < cost_so_far[&next] {
+                    cost_so_far.insert(next, new_cost);
+                    came_from.insert(next, current);
+                    frontier.push(next, new_cost);
+                }
+            }
+        }
+
+        reconstruct_path_multiple_start(came_from, &frontier_indices, target)
+    }
 }
 
-fn reconstruct_path(came_from: HashMap<NodeIndex, NodeIndex>, start: NodeIndex, target: NodeIndex) -> Vec<NodeIndex> {
+fn reconstruct_path(
+    came_from: HashMap<NodeIndex, NodeIndex>,
+    start: NodeIndex,
+    target: NodeIndex,
+) -> Vec<NodeIndex> {
     let mut path = Vec::new();
     let mut current = target;
 
@@ -117,6 +182,28 @@ fn reconstruct_path(came_from: HashMap<NodeIndex, NodeIndex>, start: NodeIndex, 
     path
 }
 
+fn reconstruct_path_multiple_start(came_from: HashMap<NodeIndex, NodeIndex>, start: &[NodeIndex], target: Option<NodeIndex>) -> Vec<NodeIndex> {
+    let mut path = Vec::new();
+
+    if target.is_none() {
+        return path;
+    }
+
+    let mut current = target.unwrap();
+
+    while !start.contains(&current) {
+        path.push(current);
+        current = came_from[&current];
+    }
+
+    current = came_from[&current];
+    path.push(current); // Start
+
+    path.reverse();
+
+    path
+}
+
 impl<T> Default for VecGraph<T> {
     fn default() -> Self {
         Self::new()
@@ -124,18 +211,20 @@ impl<T> Default for VecGraph<T> {
 }
 
 impl<T> VecGraph<T> {
-
     /// Return a [`Successors`] that can be used to iterate over the nodes that are connected to 'source'.
     ///
     /// # Arguments
     ///  * 'source' - The source node.
-    /// 
+    ///
     /// # Panics
     ///
     /// Panics if 'source' contains an index that does not correspond to an existing node.
     pub fn successors(&self, source: NodeIndex) -> Successors<T> {
         if let Some(n) = self.nodes.get(source.0) {
-            Successors { graph: self, current_edge_index: n.first_outgoing_edge}
+            Successors {
+                graph: self,
+                current_edge_index: n.first_outgoing_edge,
+            }
         } else {
             panic!("Source not not found!");
         }
@@ -154,17 +243,16 @@ impl<'graph, T> Iterator for Successors<'graph, T> {
                 } else {
                     panic!("Edge not found!");
                 }
-            },
-            None => None
+            }
+            None => None,
         }
     }
 }
 
 pub struct Successors<'graph, T> {
     graph: &'graph VecGraph<T>,
-    current_edge_index: Option<EdgeIndex>
+    current_edge_index: Option<EdgeIndex>,
 }
-
 
 #[cfg(test)]
 pub mod test {
@@ -185,7 +273,7 @@ pub mod test {
         graph.add_edge(n3, n2);
 
         let s1 = graph.successors(n0).collect::<Vec<_>>();
-        assert_eq!(&s1, &[n3, n1]); 
+        assert_eq!(&s1, &[n3, n1]);
 
         graph.add_edge(n3, n0);
         graph.add_edge(n3, n3);
@@ -217,8 +305,8 @@ pub mod test {
 
     #[test]
     fn simple_dijkstra_works() {
-        let mut graph : VecGraph<usize> = VecGraph::new();
-    
+        let mut graph: VecGraph<usize> = VecGraph::new();
+
         let n0 = graph.add_node(0);
         let n1 = graph.add_node(1);
         let n2 = graph.add_node(2);
@@ -241,7 +329,7 @@ pub mod test {
         assert_eq!(&path, &[n0, n3, n4]);
 
         graph.add_edge(n0, n4);
-        
+
         let path = graph.dijkstra(n0, n4, |&v| v);
         assert_eq!(&path, &[n0, n4]);
     }
