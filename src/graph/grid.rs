@@ -52,7 +52,7 @@ impl<T: Clone> Graph for Grid<T> {
         self.graph.dijkstra(start, target, cost_fn)
     }
 
-    fn dijkstra_search_with_delegate<S, D, C>(
+    fn dijkstra_search_with_closure<S, D, C>(
         &self,
         frontier_fn: S,
         target_fn: D,
@@ -63,7 +63,7 @@ impl<T: Clone> Graph for Grid<T> {
         D: Fn(&Self::DataType) -> bool,
         C: Fn(&Self::DataType) -> usize,
     {
-        self.graph.dijkstra_search_with_delegate(frontier_fn, target_fn, cost_fn)
+        self.graph.dijkstra_search_with_closure(frontier_fn, target_fn, cost_fn)
     }
 }
 

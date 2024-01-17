@@ -58,10 +58,10 @@ pub trait Graph {
     /// * `start_fn`: An [`Fn`] that checks if a given node should be included in the initial frontier.
     /// * `target_fn`: An [`Fn`] that checks if a given node is a target node.
     /// * `cost_fn`: A [`Fn`] that calculates the cost of traversing given the data stored in a node.
-    fn dijkstra_search_with_delegate<S, T, C>(&self, frontier_fn: S, target_fn: T, cost_fn: C) -> Vec<Self::NodeReference> 
+    fn dijkstra_search_with_closure<S, D, C>(&self, frontier_fn: S, target_fn: D, cost_fn: C) -> Vec<Self::NodeReference> 
     where 
         S: Fn(&Self::DataType) -> bool,
-        T: Fn(&Self::DataType) -> bool,
+        D: Fn(&Self::DataType) -> bool,
         C: Fn(&Self::DataType) -> usize;
 }
 

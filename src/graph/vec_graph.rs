@@ -1,7 +1,10 @@
+#![allow(dead_code)]
 use priority_queue::DoublePriorityQueue;
-use std::collections::HashMap;
+use std::{collections::HashMap, hash::Hash};
 
-use crate::iter_ext::IterExt;
+use crate::{
+    direction::relative_direction::RelativeDirection, geometry::Point2D, iter_ext::IterExt,
+};
 
 use super::{EdgeData, EdgeIndex, Graph, NodeData, NodeIndex};
 
@@ -10,6 +13,12 @@ use super::{EdgeData, EdgeIndex, Graph, NodeData, NodeIndex};
 pub struct VecGraph<T> {
     nodes: Vec<NodeData<T>>,
     edges: Vec<EdgeData>,
+}
+
+impl<T> Default for VecGraph<T> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<T> Graph for VecGraph<T> {
@@ -105,7 +114,7 @@ impl<T> Graph for VecGraph<T> {
         reconstruct_path(came_from, start, target)
     }
 
-    fn dijkstra_search_with_delegate<S, D, C>(
+    fn dijkstra_search_with_closure<S, D, C>(
         &self,
         frontier_fn: S,
         target_fn: D,
@@ -116,7 +125,13 @@ impl<T> Graph for VecGraph<T> {
         D: Fn(&Self::DataType) -> bool,
         C: Fn(&Self::DataType) -> usize,
     {
-        let frontier_indices = self.nodes.iter().filter(|n| frontier_fn(&n.data)).map(|n| n.index).collect_vec();
+        // Find the indices of all nodes that will be part of the initial frontier
+        let frontier_indices = self
+            .nodes
+            .iter()
+            .filter(|n| frontier_fn(&n.data))
+            .map(|n| n.index)
+            .collect_vec();
 
         let mut frontier = DoublePriorityQueue::new();
         frontier_indices.iter().for_each(|i| {
@@ -182,7 +197,11 @@ fn reconstruct_path(
     path
 }
 
-fn reconstruct_path_multiple_start(came_from: HashMap<NodeIndex, NodeIndex>, start: &[NodeIndex], target: Option<NodeIndex>) -> Vec<NodeIndex> {
+fn reconstruct_path_multiple_start(
+    came_from: HashMap<NodeIndex, NodeIndex>,
+    start: &[NodeIndex],
+    target: Option<NodeIndex>,
+) -> Vec<NodeIndex> {
     let mut path = Vec::new();
 
     if target.is_none() {
@@ -204,11 +223,6 @@ fn reconstruct_path_multiple_start(came_from: HashMap<NodeIndex, NodeIndex>, sta
     path
 }
 
-impl<T> Default for VecGraph<T> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
 
 impl<T> VecGraph<T> {
     /// Return a [`Successors`] that can be used to iterate over the nodes that are connected to 'source'.
@@ -256,6 +270,8 @@ pub struct Successors<'graph, T> {
 
 #[cfg(test)]
 pub mod test {
+    use crate::direction::Direction;
+
     use super::*;
 
     #[test]
@@ -333,4 +349,266 @@ pub mod test {
         let path = graph.dijkstra(n0, n4, |&v| v);
         assert_eq!(&path, &[n0, n4]);
     }
+
+    #[test]
+    fn dijkstra_search_with_delegate_works() {
+        // Example data from AoC 2023 Day 17
+        let example = r"2413432311323
+3215453535623
+3255245654254
+3446585845452
+4546657867536
+1438598798454
+4457876987766
+3637877979653
+4654967986887
+4564679986453
+1224686865563
+2546548887735
+4322674655533";
+
+        let values = parse_values(example);
+
+        let (mut graph, indices) = create_graph(&values);
+
+        for (state, index) in &indices {
+            let connections = get_connections(state, &indices);
+
+            connections.iter().for_each(|c| {
+                graph.add_edge(*index, *c);
+            });
+        }
+
+        let last_row = values.len() - 1;
+        let last_col = values.last().unwrap().len() - 1;
+
+        let frontier_fn = |n: &State| n.pos.x == 0 && n.pos.y == 0; // Closure that select states corresponding to the starting position.
+        let target_fn = |n: &State| n.pos.x == last_col && n.pos.y == last_row; // We only care about the position of the target node.
+        let cost_fn = |n: &State| n.heat_loss; // The 'cost' of moving to a state is the heat loss at that state.
+
+        let path = &graph.dijkstra_search_with_closure(frontier_fn, target_fn, cost_fn)[1..]; // First element is the start state, which we don't need to count
+        let states = path.iter().map(|p| graph.get_data(p)).collect_vec();
+
+        let total_heat_loss = states.iter().map(|s| s.heat_loss).sum::<usize>();
+
+        //print_path(&states, &values);
+
+        assert_eq!(total_heat_loss, 102);
+    }
+
+    #[allow(clippy::ptr_arg)]
+    fn print_path(path: &[&State], values: &Vec<Vec<usize>>) {
+        for (row, row_values) in values.iter().enumerate() {
+            for (col, heat_loss) in row_values.iter().enumerate() {
+                if let Some(s) = path
+                    .iter()
+                    .find(|&state| state.pos.x == col && state.pos.y == row)
+                {
+                    let char_to_print = get_char_to_print(s);
+                    print!("{}", char_to_print);
+                } else {
+                    print!("{}", heat_loss);
+                }
+            }
+            println!();
+        }
+    }
+
+    fn get_char_to_print(s: &State) -> char {
+        match s.incoming_direction {
+            RelativeDirection::Up => 'v',
+            RelativeDirection::Right => '<',
+            RelativeDirection::Down => '^',
+            RelativeDirection::Left => '>',
+        }
+    }
+
+    /// Create the graph by creating all possible states.
+    /// The states (and the connections between them) encode the rules defined in the challenge
+    /// For example, if we are in a state where: { pos: (1, 2), continuous_steps: 2, incoming_direction: Up }, then we know that there are 3 possible connections:
+    /// Moving straight: {pos: (1, 3), continuous_steps: 3, incoming_direction: Up}
+    /// Moving left: {pos: (0, 2), continuous_steps: 1, incoming_direction: Right}
+    /// Moving right: {pos: (2, 2), continuous_steps: 1, incoming_direction: Left}
+    #[allow(clippy::ptr_arg)]
+    fn create_graph(values: &Vec<Vec<usize>>) -> (VecGraph<State>, HashMap<State, NodeIndex>) {
+        let mut graph = VecGraph::new();
+        let mut indices = HashMap::new();
+
+        for (row_index, row) in values.iter().enumerate() {
+            for (col_index, &heat_loss) in row.iter().enumerate() {
+                if col_index == 0 && row_index == 0 {
+                    continue; // Skip the first position
+                }
+
+                // We can enter position from any direction
+                for direction in RelativeDirection::all() {
+                    // We can take 1, 2, or 3 steps in a row
+                    for step_count in 1..=3 {
+                        let state = State {
+                            heat_loss,
+                            pos: Point2D {
+                                x: col_index,
+                                y: row_index,
+                            },
+                            continuous_steps: step_count,
+                            incoming_direction: direction,
+                        };
+
+                        let index = graph.add_node(state.clone());
+                        indices.insert(state, index);
+                    }
+                }
+            }
+        }
+
+        // Manually create starting states
+
+        let start_up = State {
+            continuous_steps: 0,
+            pos: Point2D { x: 0, y: 0 },
+            heat_loss: values[0][0],
+            incoming_direction: RelativeDirection::Up,
+        };
+        let start_left = State {
+            continuous_steps: 0,
+            pos: Point2D { x: 0, y: 0 },
+            heat_loss: values[0][0],
+            incoming_direction: RelativeDirection::Left,
+        };
+
+        let start_up_index = graph.add_node(start_up.clone());
+        let start_left_index = graph.add_node(start_left.clone());
+
+        indices.insert(start_up, start_up_index);
+        indices.insert(start_left, start_left_index);
+
+        (graph, indices)
+    }
+
+    /// Create connections between states.
+    /// This helps encode the rules described above.
+    fn get_connections(state: &State, indices: &HashMap<State, NodeIndex>) -> Vec<NodeIndex> {
+        // For a given state, there are three directions we need to check (we cannot move backwards):
+        // 1. Moving forward - in the direction opposite of the current state's incoming_direction. Only possible if the current state's continuous_steps is less than 3. Increment step count by 1.
+        // 2. Moving left - reset step count to 1
+        // 3. Moving right - reset step count to 1
+
+        let mut res = Vec::with_capacity(3);
+
+        let incoming_dir = state.incoming_direction;
+
+        let forward = RelativeDirection::get_opposite(&incoming_dir);
+        let left = RelativeDirection::get_left(&forward);
+        let right = RelativeDirection::get_right(&forward);
+
+        if let (Some(forward_pos), true) = (
+            apply_direction(&state.pos, &forward),
+            state.continuous_steps < 3,
+        ) {
+            add_next_state(
+                &mut res,
+                indices,
+                forward_pos,
+                incoming_dir,
+                state.continuous_steps + 1,
+            );
+        }
+
+        if let Some(left_pos) = apply_direction(&state.pos, &left) {
+            add_next_state(
+                &mut res,
+                indices,
+                left_pos,
+                RelativeDirection::get_opposite(&left),
+                1,
+            );
+        }
+
+        if let Some(right_pos) = apply_direction(&state.pos, &right) {
+            add_next_state(
+                &mut res,
+                indices,
+                right_pos,
+                RelativeDirection::get_opposite(&right),
+                1,
+            );
+        }
+
+        res
+    }
+
+    fn add_next_state(
+        res: &mut Vec<NodeIndex>,
+        indices: &HashMap<State, NodeIndex>,
+        next_pos: Point2D<usize>,
+        incoming_dir: RelativeDirection,
+        steps: usize,
+    ) {
+        let opt = search_hash_map(indices, next_pos, incoming_dir, steps);
+
+        if let Some(index) = opt {
+            res.push(index);
+        }
+    }
+
+    /// A *VERY* inefficient way of finding a NodeIndex. The method will iterate over the entire HashMap.
+    /// TODO: faster solution - perhaps order states (put them into buckets?) when creating them?
+    fn search_hash_map(
+        indices: &HashMap<State, NodeIndex>,
+        next_pos: Point2D<usize>,
+        incoming_dir: RelativeDirection,
+        steps: usize,
+    ) -> Option<NodeIndex> {
+        let next_state_index = indices.iter().find_map(|(key, value)| {
+            if key.pos == next_pos
+                && key.incoming_direction == incoming_dir
+                && key.continuous_steps == steps
+            {
+                Some(value)
+            } else {
+                None
+            }
+        });
+
+        next_state_index.copied()
+    }
+
+    /// Check if moving in 'dir' would move us out of bounds. If yes, return None, otherwise calculate and return the new position
+    fn apply_direction(pos: &Point2D<usize>, dir: &RelativeDirection) -> Option<Point2D<usize>> {
+        let (row_offset, col_offset) = RelativeDirection::get_offset(dir);
+
+        if col_offset == -1 && pos.x == 0 {
+            return None;
+        }
+
+        if row_offset == -1 && pos.y == 0 {
+            return None;
+        }
+
+        // Cast to isize so that we can add a possibly negative number
+        let new_x = ((pos.x as isize) + (col_offset as isize)) as usize;
+        let new_y = ((pos.y as isize) + (row_offset as isize)) as usize;
+
+        Some(Point2D { x: new_x, y: new_y })
+    }
+
+    fn parse_values(example: &str) -> Vec<Vec<usize>> {
+        example
+            .lines()
+            .map(|l| {
+                l.chars()
+                    .map(|c| c.to_digit(10).unwrap() as usize)
+                    .collect_vec()
+            })
+            .collect_vec()
+    }
+}
+
+// Encodes a possible state we can be in while traversing the graph
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+struct State {
+    pos: Point2D<usize>,                   // Original position in graph/grid
+    heat_loss: usize,                      // Original heat loss value for the given position
+    incoming_direction: RelativeDirection, // From which direction did we enter into this position
+    continuous_steps: usize, // How many steps have we taken before entering this position
 }

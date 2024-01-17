@@ -16,7 +16,7 @@ use num_traits::{Num, Pow, PrimInt, Signed};
 /// let p3 = Point2D {x: 5.0, y: 6.0};
 /// 
 /// ```
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Point2D<T> 
 {
     pub x: T,
