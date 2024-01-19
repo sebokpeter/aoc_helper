@@ -3,7 +3,7 @@ use priority_queue::DoublePriorityQueue;
 use std::{collections::HashMap, hash::Hash};
 
 use crate::{
-    direction::relative_direction::RelativeDirection, iter_ext::IterExt, geometry::point::Point2D,
+    direction::relative_direction::RelativeDirection, geometry::point::Point2D, iter_ext::IterExt,
 };
 
 use super::{EdgeData, EdgeIndex, Graph, NodeData, NodeIndex};
@@ -66,11 +66,19 @@ impl<T> Graph for VecGraph<T> {
         source_node.first_outgoing_edge = Some(EdgeIndex(edge_index));
     }
 
-    fn get_data(&self, node: &Self::NodeReference) -> &Self::DataType {
+    fn get_data(&self, node: &Self::NodeReference) -> Option<&Self::DataType> {
         if let Some(node_data) = self.nodes.get(node.0) {
-            &node_data.data
+            Some(&node_data.data)
         } else {
-            panic!("Node not found!");
+            None
+        }
+    }
+
+    fn get_data_mut(&mut self, node: &Self::NodeReference) -> Option<&mut Self::DataType> {
+        if let Some(node_data) = self.nodes.get_mut(node.0) {
+            Some(&mut node_data.data)
+        } else {
+            None
         }
     }
 
@@ -100,7 +108,7 @@ impl<T> Graph for VecGraph<T> {
             }
 
             for next in self.successors(current) {
-                let data = self.get_data(&next);
+                let data = self.get_data(&next).unwrap();
                 let new_cost = cost_fn(data) + cost_so_far[&current];
 
                 if !cost_so_far.contains_key(&next) || new_cost < cost_so_far[&next] {
@@ -153,13 +161,13 @@ impl<T> Graph for VecGraph<T> {
         while !frontier.is_empty() {
             let (current, _) = frontier.pop_min().unwrap();
 
-            if target_fn(self.get_data(&current)) {
+            if target_fn(self.get_data(&current).unwrap()) {
                 target = Some(current);
                 break;
             }
 
             for next in self.successors(current) {
-                let data = self.get_data(&next);
+                let data = self.get_data(&next).unwrap();
                 let new_cost = cost_fn(data) + cost_so_far[&current];
 
                 if !cost_so_far.contains_key(&next) || new_cost < cost_so_far[&next] {
@@ -175,14 +183,15 @@ impl<T> Graph for VecGraph<T> {
 
     fn find<F>(&self, predicate: F) -> Option<Self::NodeReference>
     where
-        F: Fn(&Self::DataType) -> bool {
-            for node in &self.nodes {
-                if predicate(&node.data) {
-                    return Some(node.index);
-                }
+        F: Fn(&Self::DataType) -> bool,
+    {
+        for node in &self.nodes {
+            if predicate(&node.data) {
+                return Some(node.index);
             }
+        }
 
-            None
+        None
     }
 }
 
@@ -234,7 +243,6 @@ fn reconstruct_path_multiple_start(
 
     path
 }
-
 
 impl<T> VecGraph<T> {
     /// Return a [`Successors`] that can be used to iterate over the nodes that are connected to 'source'.
@@ -327,7 +335,7 @@ pub mod test {
 
         let s1 = grid.successors(n0).collect::<Vec<_>>();
         assert!(s1.len() == 4);
-        let values = s1.iter().map(|i| *grid.get_data(i)).collect::<Vec<_>>();
+        let values = s1.iter().map(|i| *grid.get_data(i).unwrap()).collect::<Vec<_>>();
         assert_eq!(&values, &["four", "three", "two", "one"]);
     }
 
@@ -347,11 +355,11 @@ pub mod test {
         assert!(find_one.is_some());
         assert_eq!(one, find_one.unwrap());
 
-        let find_two = graph.find(|&d| d == "Two" );
+        let find_two = graph.find(|&d| d == "Two");
         assert!(find_two.is_some());
         assert_eq!(two, find_two.unwrap());
-    
-        let find_three = graph.find(|&d| d == "Three" );
+
+        let find_three = graph.find(|&d| d == "Three");
         assert!(find_three.is_some());
         assert_eq!(three, find_three.unwrap());
     }
@@ -426,7 +434,7 @@ pub mod test {
         let path = &graph.dijkstra_search_with_closure(frontier_fn, target_fn, cost_fn)[1..]; // First element is the start state, which we don't need to count
         let states = path.iter().map(|p| graph.get_data(p)).collect_vec();
 
-        let total_heat_loss = states.iter().map(|s| s.heat_loss).sum::<usize>();
+        let total_heat_loss = states.iter().map(|s| s.unwrap()).map(|s| s.heat_loss).sum::<usize>();
 
         //print_path(&states, &values);
 

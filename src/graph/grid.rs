@@ -36,7 +36,7 @@ impl<T: Clone> Graph for Grid<T> {
         self.graph.add_edge(source, target)
     }
 
-    fn get_data(&self, node: &Self::NodeReference) -> &Self::DataType {
+    fn get_data(&self, node: &Self::NodeReference) -> Option<&Self::DataType> {
         self.graph.get_data(node)
     }
 
@@ -63,13 +63,19 @@ impl<T: Clone> Graph for Grid<T> {
         D: Fn(&Self::DataType) -> bool,
         C: Fn(&Self::DataType) -> usize,
     {
-        self.graph.dijkstra_search_with_closure(frontier_fn, target_fn, cost_fn)
+        self.graph
+            .dijkstra_search_with_closure(frontier_fn, target_fn, cost_fn)
     }
 
     fn find<F>(&self, predicate: F) -> Option<Self::NodeReference>
     where
-        F: Fn(&Self::DataType) -> bool {
+        F: Fn(&Self::DataType) -> bool,
+    {
         self.graph.find(predicate)
+    }
+
+    fn get_data_mut(&mut self, node: &Self::NodeReference) -> Option<&mut Self::DataType> {
+        self.graph.get_data_mut(node)
     }
 }
 
@@ -144,7 +150,7 @@ impl<T: Clone + std::fmt::Display> Grid<T> {
         if let Some(data) = &self.node_indices {
             for row in data {
                 for d in row {
-                    print!("{}", self.get_data(d));
+                    print!("{}", self.get_data(d).unwrap());
                 }
                 println!();
             }
@@ -160,7 +166,7 @@ impl<T: Clone + std::fmt::Display> Grid<T> {
                     if path.contains(d) {
                         print!("*");
                     } else {
-                        print!("{}", self.get_data(d))
+                        print!("{}", self.get_data(d).unwrap())
                     }
                 }
                 println!();
@@ -240,7 +246,7 @@ pub mod test {
         assert!(f_index.is_some());
         assert_eq!(f_index.unwrap().0, 0);
 
-        assert_eq!(*grid.get_data(&f_index.unwrap()), 1);
+        assert_eq!(*grid.get_data(&f_index.unwrap()).unwrap(), 1);
     }
 
     #[test]
@@ -254,7 +260,7 @@ pub mod test {
         assert!(l_index.is_some());
         assert_eq!(l_index.unwrap().0, 8);
 
-        assert_eq!(*grid.get_data(&l_index.unwrap()), 9);
+        assert_eq!(*grid.get_data(&l_index.unwrap()).unwrap(), 9);
     }
 
     #[test]

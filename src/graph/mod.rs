@@ -24,12 +24,19 @@ pub trait Graph {
     /// * `target` - The target node.
     fn add_edge(&mut self, source: Self::NodeReference, target: Self::NodeReference);
 
-    /// Retrieve the data stored in the node specified by 'node'.
+    /// Retrieve immutable reference to the data stored in the node specified by 'node'.
     ///
     /// # Arguments
     ///
     /// * `node` - Index of reference of the node which contains the data.
-    fn get_data(&self, node: &Self::NodeReference) -> &Self::DataType;
+    fn get_data(&self, node: &Self::NodeReference) -> Option<&Self::DataType>;
+
+    /// Retrieve mutable reference to the data stored in the node specified by 'node'.
+    ///
+    /// # Arguments
+    ///
+    /// * `node` - Index of reference of the node which contains the data.
+    fn get_data_mut(&mut self, node: &Self::NodeReference) -> Option<&mut Self::DataType>;
 
     /// Search the graph for the shortest route between 'start' and 'target', using Dijkstra’s Algorithm.
     /// Each node in the graph must have a cost associated with it.
