@@ -3,7 +3,7 @@ use priority_queue::DoublePriorityQueue;
 use std::{collections::HashMap, hash::Hash};
 
 use crate::{
-    direction::relative_direction::RelativeDirection, geometry::Point2D, iter_ext::IterExt,
+    direction::relative_direction::RelativeDirection, iter_ext::IterExt, geometry::point::Point2D,
 };
 
 use super::{EdgeData, EdgeIndex, Graph, NodeData, NodeIndex};
@@ -172,6 +172,18 @@ impl<T> Graph for VecGraph<T> {
 
         reconstruct_path_multiple_start(came_from, &frontier_indices, target)
     }
+
+    fn find<F>(&self, predicate: F) -> Option<Self::NodeReference>
+    where
+        F: Fn(&Self::DataType) -> bool {
+            for node in &self.nodes {
+                if predicate(&node.data) {
+                    return Some(node.index);
+                }
+            }
+
+            None
+    }
 }
 
 fn reconstruct_path(
@@ -270,7 +282,7 @@ pub struct Successors<'graph, T> {
 
 #[cfg(test)]
 pub mod test {
-    use crate::direction::Direction;
+    use crate::{direction::Direction, geometry::point::Point2D};
 
     use super::*;
 
@@ -320,6 +332,31 @@ pub mod test {
     }
 
     #[test]
+    fn find_works() {
+        let mut graph = VecGraph::new();
+
+        let one = graph.add_node("One");
+        let two = graph.add_node("Two");
+        let three = graph.add_node("Three");
+
+        graph.add_edge(one, two);
+        graph.add_edge(two, three);
+        graph.add_edge(three, one);
+
+        let find_one = graph.find(|&d| d == "One");
+        assert!(find_one.is_some());
+        assert_eq!(one, find_one.unwrap());
+
+        let find_two = graph.find(|&d| d == "Two" );
+        assert!(find_two.is_some());
+        assert_eq!(two, find_two.unwrap());
+    
+        let find_three = graph.find(|&d| d == "Three" );
+        assert!(find_three.is_some());
+        assert_eq!(three, find_three.unwrap());
+    }
+
+    #[test]
     fn simple_dijkstra_works() {
         let mut graph: VecGraph<usize> = VecGraph::new();
 
@@ -351,7 +388,7 @@ pub mod test {
     }
 
     #[test]
-    fn dijkstra_search_with_delegate_works() {
+    fn dijkstra_search_with_closure_works() {
         // Example data from AoC 2023 Day 17
         let example = r"2413432311323
 3215453535623
@@ -404,8 +441,7 @@ pub mod test {
                     .iter()
                     .find(|&state| state.pos.x == col && state.pos.y == row)
                 {
-                    let char_to_print = get_char_to_print(s);
-                    print!("{}", char_to_print);
+                    print!("{}", get_char_to_print(s));
                 } else {
                     print!("{}", heat_loss);
                 }
@@ -440,7 +476,7 @@ pub mod test {
                     continue; // Skip the first position
                 }
 
-                // We can enter position from any direction
+                // We can enter a position from any direction
                 for direction in RelativeDirection::all() {
                     // We can take 1, 2, or 3 steps in a row
                     for step_count in 1..=3 {

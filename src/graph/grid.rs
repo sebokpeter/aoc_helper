@@ -65,6 +65,12 @@ impl<T: Clone> Graph for Grid<T> {
     {
         self.graph.dijkstra_search_with_closure(frontier_fn, target_fn, cost_fn)
     }
+
+    fn find<F>(&self, predicate: F) -> Option<Self::NodeReference>
+    where
+        F: Fn(&Self::DataType) -> bool {
+        self.graph.find(predicate)
+    }
 }
 
 impl<T: Clone> Grid<T> {

@@ -49,20 +49,34 @@ pub trait Graph {
         F: Fn(&Self::DataType) -> usize;
 
     /// Search the graph for the shortest route between two nodes, using Dijkstra’s Algorithm.
-    /// Instead of specifying the start and target nodes, this function takes two [`Fn`]s. 
+    /// Instead of specifying the start and target nodes, this function takes two [`Fn`]s.
     /// The first, 'frontier_fn' specifies if a node should be part of the initial frontier.
     /// The second, 'target_fn' checks if a given node is a target node.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `start_fn`: An [`Fn`] that checks if a given node should be included in the initial frontier.
     /// * `target_fn`: An [`Fn`] that checks if a given node is a target node.
     /// * `cost_fn`: A [`Fn`] that calculates the cost of traversing given the data stored in a node.
-    fn dijkstra_search_with_closure<S, D, C>(&self, frontier_fn: S, target_fn: D, cost_fn: C) -> Vec<Self::NodeReference> 
-    where 
+    fn dijkstra_search_with_closure<S, D, C>(
+        &self,
+        frontier_fn: S,
+        target_fn: D,
+        cost_fn: C,
+    ) -> Vec<Self::NodeReference>
+    where
         S: Fn(&Self::DataType) -> bool,
         D: Fn(&Self::DataType) -> bool,
         C: Fn(&Self::DataType) -> usize;
+
+    /// Searches for a node that satisfies [predicate].
+    ///
+    /// # Arguments
+    ///
+    /// * `predicate` - A closure that is applied to each node in the graph. If it returns [true], then [find()] returns [Some(current_node_index)]. If no nodes match, [find()] will return [None].
+    fn find<F>(&self, predicate: F) -> Option<Self::NodeReference>
+    where
+        F: Fn(&Self::DataType) -> bool;
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -82,5 +96,5 @@ struct EdgeData {
     next_outgoing_edge: Option<EdgeIndex>,
 }
 
-pub mod vec_graph;
 pub mod grid;
+pub mod vec_graph;
