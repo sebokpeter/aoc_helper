@@ -86,46 +86,6 @@ impl<T> Graph for VecGraph<T> {
         self.successors(*node).collect_vec()
     }
 
-    fn dijkstra<F>(
-        &self,
-        start: Self::NodeReference,
-        target: Self::NodeReference,
-        cost_fn: F,
-    ) -> Vec<Self::NodeReference>
-    where
-        F: Fn(&Self::DataType) -> usize,
-    {
-        let mut frontier = DoublePriorityQueue::new();
-        frontier.push(start, 0);
-
-        let mut came_from = HashMap::new();
-        came_from.insert(start, start);
-
-        let mut cost_so_far = HashMap::new();
-        cost_so_far.insert(start, 0);
-
-        while !frontier.is_empty() {
-            let (current, _) = frontier.pop_min().unwrap();
-
-            if current == target {
-                break;
-            }
-
-            for next in self.successors(current) {
-                let data = self.get_data(&next).unwrap();
-                let new_cost = cost_fn(data) + cost_so_far[&current];
-
-                if !cost_so_far.contains_key(&next) || new_cost < cost_so_far[&next] {
-                    cost_so_far.insert(next, new_cost);
-                    came_from.insert(next, current);
-                    frontier.push(next, new_cost);
-                }
-            }
-        }
-
-        reconstruct_path(came_from, start, target)
-    }
-
     fn dijkstra_search_with_closure<S, D, C>(
         &self,
         frontier_fn: S,
@@ -199,28 +159,6 @@ impl<T> Graph for VecGraph<T> {
     }
 }
 
-fn reconstruct_path(
-    came_from: HashMap<NodeIndex, NodeIndex>,
-    start: NodeIndex,
-    target: NodeIndex,
-) -> Vec<NodeIndex> {
-    let mut path = Vec::new();
-    let mut current = target;
-
-    if !came_from.contains_key(&target) {
-        return path;
-    }
-
-    while current != start {
-        path.push(current);
-        current = came_from[&current];
-    }
-
-    path.push(start);
-    path.reverse();
-
-    path
-}
 
 fn reconstruct_path_multiple_start(
     came_from: HashMap<NodeIndex, NodeIndex>,

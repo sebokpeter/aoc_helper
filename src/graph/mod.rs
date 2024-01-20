@@ -1,7 +1,11 @@
+use std::{collections::HashMap, hash::Hash};
+
+use priority_queue::DoublePriorityQueue;
+
 // Represents a set of nodes connected by edges
 pub trait Graph {
     type DataType; // Type of the data contained in each node
-    type NodeReference;
+    type NodeReference: Hash + Eq + Clone + Copy;
     type EdgeReference;
 
     /// Create a new Graph.
@@ -56,7 +60,39 @@ pub trait Graph {
         cost_fn: F,
     ) -> Vec<Self::NodeReference>
     where
-        F: Fn(&Self::DataType) -> usize;
+        F: Fn(&Self::DataType) -> usize,
+        Self: Sized
+    {
+        let mut frontier = DoublePriorityQueue::new();
+        frontier.push(start, 0);
+
+        let mut came_from = HashMap::new();
+        came_from.insert(start, start);
+
+        let mut cost_so_far = HashMap::new();
+        cost_so_far.insert(start, 0);
+
+        while !frontier.is_empty() {
+            let (current, _) = frontier.pop_min().unwrap();
+
+            if current == target {
+                break;
+            }
+
+            for next in self.get_neighbors(&current) {
+                let data = self.get_data(&next).unwrap();
+                let new_cost = cost_fn(data) + cost_so_far[&current];
+
+                if !cost_so_far.contains_key(&next) || new_cost < cost_so_far[&next] {
+                    cost_so_far.insert(next, new_cost);
+                    came_from.insert(next, current);
+                    frontier.push(next, new_cost);
+                }
+            }
+        }
+
+        reconstruct_path::<Self>(came_from, start, target)
+    }
 
     /// Search the graph for the shortest route between two nodes, using Dijkstra’s Algorithm.
     /// Instead of specifying the start and target nodes, this function takes two [`Fn`]s.
@@ -89,12 +125,34 @@ pub trait Graph {
         F: Fn(&Self::DataType) -> bool;
 }
 
+fn reconstruct_path<G>(came_from: HashMap<G::NodeReference, G::NodeReference>, start: G::NodeReference, target: G::NodeReference) -> Vec<G::NodeReference>
+where
+    G: Graph + Sized,
+{
+    let mut path = Vec::new();
+
+    if !came_from.contains_key(&target) {
+        return path;
+    }
+
+    let mut current = target;
+
+    while current != start {
+        path.push(current);
+        current = came_from[&current]
+    }
+
+    path.push(start);
+    path.reverse();
+
+    path
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct NodeIndex(pub usize);
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct EdgeIndex(pub usize);
 
-
 pub mod grid;
-pub mod vec_graph;
 pub mod rc_graph;
+pub mod vec_graph;
