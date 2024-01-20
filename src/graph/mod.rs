@@ -75,7 +75,7 @@ pub trait Graph {
     /// # Example
     /// ```
     /// use aoc_helper::graph::{Graph, vec_graph::VecGraph};
-    /// 
+    ///
     /// let mut graph = VecGraph::new();
     ///
     /// let start = graph.add_node(0);
@@ -153,7 +153,7 @@ pub trait Graph {
     ///
     /// ```
     /// use aoc_helper::graph::{Graph, vec_graph::VecGraph};
-    /// 
+    ///
     /// let mut graph = VecGraph::new();
     ///
     /// let start = graph.add_node(0);
@@ -186,7 +186,50 @@ pub trait Graph {
     where
         S: Fn(&Self::DataType) -> bool,
         D: Fn(&Self::DataType) -> bool,
-        C: Fn(&Self::DataType) -> usize;
+        C: Fn(&Self::DataType) -> usize,
+        Self: Sized
+    {
+        let frontier_indices = self.find_nodes(frontier_fn);
+
+        let mut frontier = DoublePriorityQueue::new();
+        frontier_indices.iter().for_each(|&i| {
+            frontier.push(i, 0);
+        });
+
+        let mut came_from = HashMap::new();
+        frontier_indices.iter().for_each(|&i| {
+            came_from.insert(i, i);
+        });
+
+        let mut cost_so_far = HashMap::new();
+        frontier_indices.iter().for_each(|&i| {
+            cost_so_far.insert(i, 0);
+        });
+
+        let mut target = None;
+
+        while !frontier.is_empty() {
+            let (current, _) = frontier.pop_min().unwrap();
+
+            if target_fn(self.get_data(&current).unwrap()) {
+                target = Some(current);
+                break;
+            }
+
+            for next in self.get_neighbors(&current) {
+                let data = self.get_data(&next).unwrap();
+                let new_cost = cost_fn(data) + cost_so_far[&current];
+
+                if !cost_so_far.contains_key(&next) || new_cost < cost_so_far[&next] {
+                    cost_so_far.insert(next, new_cost);
+                    came_from.insert(next, current);
+                    frontier.push(next, new_cost);
+                }
+            }
+        }
+
+        reconstruct_path_closure::<Self>(came_from, frontier_indices, target)
+    }
 }
 
 fn reconstruct_path<G>(
@@ -211,6 +254,33 @@ where
     }
 
     path.push(start);
+    path.reverse();
+
+    path
+}
+
+fn reconstruct_path_closure<G>(
+    came_from: HashMap<G::NodeReference, G::NodeReference>,
+    start_nodes: Vec<G::NodeReference>,
+    target: Option<G::NodeReference>,
+) -> Vec<G::NodeReference>
+where
+    G: Graph + Sized,
+{
+    let mut path = Vec::new();
+
+    if target.is_none() {
+        return path;
+    }
+
+    let mut current = target.unwrap();
+
+    while !start_nodes.contains(&current) {
+        path.push(current);
+        current = came_from[&current];
+    }
+
+    path.push(came_from[&current]); // Start node
     path.reverse();
 
     path

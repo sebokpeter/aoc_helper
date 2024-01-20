@@ -1,8 +1,6 @@
 #![allow(dead_code)]
 
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
-
-use priority_queue::DoublePriorityQueue;
+use std::{cell::RefCell, rc::Rc};
 
 use crate::iter_ext::IterExt;
 
@@ -139,90 +137,6 @@ impl<T: Clone> Graph for RcGraph<T> {
             .map(|node| node.index)
             .collect()
     }
-
-    fn dijkstra_search_with_closure<S, D, C>(
-        &self,
-        frontier_fn: S,
-        target_fn: D,
-        cost_fn: C,
-    ) -> Vec<Self::NodeReference>
-    where
-        S: Fn(&Self::DataType) -> bool,
-        D: Fn(&Self::DataType) -> bool,
-        C: Fn(&Self::DataType) -> usize,
-    {
-        let frontier_indices = self
-            .nodes
-            .iter()
-            .filter(|&n| frontier_fn(&n.data))
-            .map(|n| n.index)
-            .collect_vec();
-
-        let mut frontier = DoublePriorityQueue::new();
-        frontier_indices.iter().for_each(|i| {
-            frontier.push(*i, 0);
-        });
-
-        let mut came_from = HashMap::new();
-        frontier_indices.iter().for_each(|i| {
-            came_from.insert(*i, *i);
-        });
-
-        let mut cost_so_far = HashMap::new();
-        frontier_indices.iter().for_each(|i| {
-            cost_so_far.insert(*i, 0);
-        });
-
-        let mut target = None;
-
-        while !frontier.is_empty() {
-            let (current, _) = frontier.pop_min().unwrap();
-
-            if target_fn(self.get_data(&current).unwrap()) {
-                target = Some(current);
-                break;
-            }
-
-            for next in self.get_neighbors(&current) {
-                let data = self.get_data(&next).unwrap();
-                let new_cost = cost_fn(data) + cost_so_far[&current];
-
-                if !cost_so_far.contains_key(&next) || new_cost < cost_so_far[&next] {
-                    cost_so_far.insert(next, new_cost);
-                    came_from.insert(next, current);
-                    frontier.push(next, new_cost);
-                }
-            }
-        }
-
-        reconstruct_path_multiple_start(came_from, frontier_indices, target)
-    }
-}
-
-fn reconstruct_path_multiple_start(
-    came_from: HashMap<NodeIndex, NodeIndex>,
-    start: Vec<NodeIndex>,
-    target: Option<NodeIndex>,
-) -> Vec<NodeIndex> {
-    let mut path = Vec::new();
-
-    if target.is_none() {
-        return path;
-    }
-
-    let mut current = target.unwrap();
-
-    while !start.contains(&current) {
-        path.push(current);
-        current = came_from[&current];
-    }
-
-    current = came_from[&current];
-    path.push(current); // Start
-
-    path.reverse();
-
-    path
 }
 
 #[derive(Clone)]
