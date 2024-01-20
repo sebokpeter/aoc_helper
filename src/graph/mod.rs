@@ -38,6 +38,9 @@ pub trait Graph {
     /// * `node` - Index of reference of the node which contains the data.
     fn get_data_mut(&mut self, node: &Self::NodeReference) -> Option<&mut Self::DataType>;
 
+    /// Get the [NodeReferences] of all neighbors of [node].
+    fn get_neighbors(&self, node: &Self::NodeReference) -> Vec<Self::NodeReference>;
+
     /// Search the graph for the shortest route between 'start' and 'target', using Dijkstra’s Algorithm.
     /// Each node in the graph must have a cost associated with it.
     ///

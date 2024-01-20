@@ -82,6 +82,10 @@ impl<T> Graph for VecGraph<T> {
         }
     }
 
+    fn get_neighbors(&self, node: &Self::NodeReference) -> Vec<Self::NodeReference> {
+        self.successors(*node).collect_vec()
+    }
+
     fn dijkstra<F>(
         &self,
         start: Self::NodeReference,
@@ -337,6 +341,35 @@ pub mod test {
         assert!(s1.len() == 4);
         let values = s1.iter().map(|i| *grid.get_data(i).unwrap()).collect::<Vec<_>>();
         assert_eq!(&values, &["four", "three", "two", "one"]);
+    }
+
+    #[test]
+    fn get_neighbors_wokrs() {
+        let mut grid: VecGraph<&str> = VecGraph::new();
+
+        let n0 = grid.add_node("middle");
+        let n1 = grid.add_node("one");
+        let n2 = grid.add_node("two");
+        let n3 = grid.add_node("three");
+        let n4 = grid.add_node("four");
+
+        grid.add_edge(n0, n1);
+        grid.add_edge(n0, n2);
+        grid.add_edge(n0, n3);
+        grid.add_edge(n0, n4);
+
+        let neighbors = grid.get_neighbors(&n0);
+
+        assert_eq!(&neighbors, &[n4, n3, n2, n1]);
+
+        grid.add_edge(n1, n4);
+        grid.add_edge(n1, n3);
+        grid.add_edge(n1, n2);
+        grid.add_edge(n1, n0);
+
+        let neighbors = grid.get_neighbors(&n1);
+
+        assert_eq!(&neighbors, &[n0, n2, n3, n4]);    
     }
 
     #[test]

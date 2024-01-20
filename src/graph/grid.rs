@@ -77,6 +77,10 @@ impl<T: Clone> Graph for Grid<T> {
     fn get_data_mut(&mut self, node: &Self::NodeReference) -> Option<&mut Self::DataType> {
         self.graph.get_data_mut(node)
     }
+
+    fn get_neighbors(&self, node: &Self::NodeReference) -> Vec<Self::NodeReference> {
+        self.graph.get_neighbors(node)
+    }
 }
 
 impl<T: Clone> Grid<T> {
