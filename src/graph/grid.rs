@@ -81,6 +81,12 @@ impl<T: Clone> Graph for Grid<T> {
     fn get_neighbors(&self, node: &Self::NodeReference) -> Vec<Self::NodeReference> {
         self.graph.get_neighbors(node)
     }
+
+    fn find_nodes<F>(&self, predicate: F) -> Vec<Self::NodeReference>
+    where
+        F: Fn(&Self::DataType) -> bool {
+        self.graph.find_nodes(predicate)
+    }
 }
 
 impl<T: Clone> Grid<T> {

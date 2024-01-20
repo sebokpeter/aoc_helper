@@ -129,6 +129,17 @@ impl<T: Clone> Graph for RcGraph<T> {
         None
     }
 
+    fn find_nodes<F>(&self, predicate: F) -> Vec<Self::NodeReference>
+    where
+        F: Fn(&Self::DataType) -> bool,
+    {
+        self.nodes
+            .iter()
+            .filter(|node| predicate(&node.data))
+            .map(|node| node.index)
+            .collect()
+    }
+
     fn dijkstra_search_with_closure<S, D, C>(
         &self,
         frontier_fn: S,
@@ -213,7 +224,6 @@ fn reconstruct_path_multiple_start(
 
     path
 }
-
 
 #[derive(Clone)]
 struct Node<T>
@@ -446,6 +456,38 @@ pub mod test {
     }
 
     #[test]
+    fn find_nodes_no_match_returns_empty_vec() {
+        let mut graph = RcGraph::new();
+
+        let vec_one = graph.find_nodes(|&d| d > 100);
+        assert!(vec_one.is_empty());
+
+        graph.add_node(0);
+        graph.add_node(1);
+        graph.add_node(100);
+
+        let vec_one = graph.find_nodes(|&d| d > 100);
+        assert!(vec_one.is_empty());
+    }
+
+    #[test]
+    fn can_find_nodes() {
+        let mut graph = RcGraph::new();
+
+        graph.add_node("Hello World!");
+        graph.add_node("Hello Graph!");
+        graph.add_node("Hello AoC");
+
+        let hellos = graph.find_nodes(|&v| v.starts_with("Hello"));
+        assert_eq!(hellos.len(), 3);
+
+        let aoc = graph.find_nodes(|&v| v.ends_with("AoC"));
+
+        assert_eq!(aoc.len(), 1);
+        assert_eq!(aoc[0].0, 2);
+    }
+
+    #[test]
     fn dijkstra_no_path_returns_empty_vec() {
         let mut graph = RcGraph::new();
 
@@ -534,8 +576,8 @@ pub mod test {
         graph.add_edge(n1, n3);
         graph.add_edge(n3, destination);
 
-        let frontier_fn = |data: &usize| *data == 0;
-        let target_fn = |data: &usize| *data == 3;
+        let frontier_fn = |data: &usize| *data == 0; // The start node is the node where the node's data is 0
+        let target_fn = |data: &usize| *data == 3; // The end node us the node where the node's data is 3
         let cost_fn = |data: &usize| *data;
         let path = graph.dijkstra_search_with_closure(frontier_fn, target_fn, cost_fn);
 

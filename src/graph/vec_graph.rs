@@ -157,8 +157,18 @@ impl<T> Graph for VecGraph<T> {
 
         None
     }
-}
 
+    fn find_nodes<F>(&self, predicate: F) -> Vec<Self::NodeReference>
+    where
+        F: Fn(&Self::DataType) -> bool,
+    {
+        self.nodes
+            .iter()
+            .filter(|node| predicate(&node.data))
+            .map(|node| node.index)
+            .collect()
+    }
+}
 
 fn reconstruct_path_multiple_start(
     came_from: HashMap<NodeIndex, NodeIndex>,
@@ -242,7 +252,6 @@ struct EdgeData {
     next_outgoing_edge: Option<EdgeIndex>,
 }
 
-
 #[cfg(test)]
 pub mod test {
     use crate::{direction::Direction, geometry::point::Point2D};
@@ -290,7 +299,10 @@ pub mod test {
 
         let s1 = grid.successors(n0).collect::<Vec<_>>();
         assert!(s1.len() == 4);
-        let values = s1.iter().map(|i| *grid.get_data(i).unwrap()).collect::<Vec<_>>();
+        let values = s1
+            .iter()
+            .map(|i| *grid.get_data(i).unwrap())
+            .collect::<Vec<_>>();
         assert_eq!(&values, &["four", "three", "two", "one"]);
     }
 
@@ -320,7 +332,7 @@ pub mod test {
 
         let neighbors = grid.get_neighbors(&n1);
 
-        assert_eq!(&neighbors, &[n0, n2, n3, n4]);    
+        assert_eq!(&neighbors, &[n0, n2, n3, n4]);
     }
 
     #[test]
@@ -346,6 +358,24 @@ pub mod test {
         let find_three = graph.find(|&d| d == "Three");
         assert!(find_three.is_some());
         assert_eq!(three, find_three.unwrap());
+    }
+
+    #[test]
+    fn find_nodes_works() {
+        let mut graph = VecGraph::new();
+
+        graph.add_node(0);
+        graph.add_node(2);
+        graph.add_node(4);
+
+        let o1 = graph.add_node(1);
+        let o2 = graph.add_node(3);
+        let o3 = graph.add_node(5);
+
+        let odd = graph.find_nodes(|n| n % 2 == 1);
+
+        assert_eq!(odd.len(), 3);
+        assert_eq!(&odd, &[o1, o2, o3]);
     }
 
     #[test]
@@ -418,7 +448,11 @@ pub mod test {
         let path = &graph.dijkstra_search_with_closure(frontier_fn, target_fn, cost_fn)[1..]; // First element is the start state, which we don't need to count
         let states = path.iter().map(|p| graph.get_data(p)).collect_vec();
 
-        let total_heat_loss = states.iter().map(|s| s.unwrap()).map(|s| s.heat_loss).sum::<usize>();
+        let total_heat_loss = states
+            .iter()
+            .map(|s| s.unwrap())
+            .map(|s| s.heat_loss)
+            .sum::<usize>();
 
         //print_path(&states, &values);
 
