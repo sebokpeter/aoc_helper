@@ -24,14 +24,14 @@ pub trait Graph {
     /// * `target` - The target node.
     fn add_edge(&mut self, source: Self::NodeReference, target: Self::NodeReference);
 
-    /// Retrieve immutable reference to the data stored in the node specified by 'node'.
+    /// Retrieve immutable reference to the data stored in the node specified by `node`.
     ///
     /// # Arguments
     ///
     /// * `node` - Index of reference of the node which contains the data.
     fn get_data(&self, node: &Self::NodeReference) -> Option<&Self::DataType>;
 
-    /// Retrieve mutable reference to the data stored in the node specified by 'node'.
+    /// Retrieve mutable reference to the data stored in the node specified by `node`.
     ///
     /// # Arguments
     ///
@@ -41,7 +41,7 @@ pub trait Graph {
     /// Get the [NodeReferences] of all neighbors of [node].
     fn get_neighbors(&self, node: &Self::NodeReference) -> Vec<Self::NodeReference>;
 
-    /// Search the graph for the shortest route between 'start' and 'target', using Dijkstra’s Algorithm.
+    /// Search the graph for the shortest route between `start` and `target`, using Dijkstra’s Algorithm.
     /// Each node in the graph must have a cost associated with it.
     ///
     /// # Arguments
@@ -94,17 +94,7 @@ pub struct NodeIndex(pub usize);
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct EdgeIndex(pub usize);
 
-#[derive(Clone)]
-struct NodeData<T> {
-    data: T,
-    index: NodeIndex,
-    first_outgoing_edge: Option<EdgeIndex>,
-}
-
-struct EdgeData {
-    target: NodeIndex,
-    next_outgoing_edge: Option<EdgeIndex>,
-}
 
 pub mod grid;
 pub mod vec_graph;
+pub mod rc_graph;

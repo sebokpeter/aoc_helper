@@ -6,7 +6,7 @@ use crate::{
     direction::relative_direction::RelativeDirection, geometry::point::Point2D, iter_ext::IterExt,
 };
 
-use super::{EdgeData, EdgeIndex, Graph, NodeData, NodeIndex};
+use super::{EdgeIndex, Graph, NodeIndex};
 
 // An implementation of a graph datastructure, using vectors to store nodes and edges.
 // Based on: https://smallcultfollowing.com/babysteps/blog/2015/04/06/modeling-graphs-in-rust-using-vector-indices/
@@ -292,6 +292,19 @@ pub struct Successors<'graph, T> {
     current_edge_index: Option<EdgeIndex>,
 }
 
+#[derive(Clone)]
+struct NodeData<T> {
+    data: T,
+    index: NodeIndex,
+    first_outgoing_edge: Option<EdgeIndex>,
+}
+
+struct EdgeData {
+    target: NodeIndex,
+    next_outgoing_edge: Option<EdgeIndex>,
+}
+
+
 #[cfg(test)]
 pub mod test {
     use crate::{direction::Direction, geometry::point::Point2D};
@@ -344,7 +357,7 @@ pub mod test {
     }
 
     #[test]
-    fn get_neighbors_wokrs() {
+    fn get_neighbors_works() {
         let mut grid: VecGraph<&str> = VecGraph::new();
 
         let n0 = grid.add_node("middle");
