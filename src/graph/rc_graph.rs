@@ -4,7 +4,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use crate::iter_ext::IterExt;
 
-use super::{Graph, NodeIndex};
+use super::{Graph, GraphIntoIterator, GraphIterator, NodeIndex};
 
 /// A [`Graph`] implementation using [`Rc<RefCell<_>>`].
 pub struct RcGraph<T: Clone> {
@@ -136,6 +136,47 @@ impl<T: Clone> Graph for RcGraph<T> {
             .filter(|node| predicate(&node.data))
             .map(|node| node.index)
             .collect()
+    }
+}
+
+impl<T: Clone> RcGraph<T> {
+    pub fn iter(&self) -> GraphIterator<RcGraph<T>> {
+        GraphIterator { graph: self, index: 0 }
+    }
+}
+
+impl<'a, T:Clone> Iterator for GraphIterator<'a, RcGraph<T>> {
+    type Item = &'a <RcGraph<T> as Graph>::NodeReference;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index < self.graph.nodes.len() {
+            self.index += 1;
+            Some(&self.graph.nodes[self.index - 1].index)
+        } else {
+            None
+        }
+    }
+}
+
+impl<T: Clone> Iterator for GraphIntoIterator<RcGraph<T>> {
+    type Item = <RcGraph<T> as Graph>::NodeReference;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.graph.nodes.is_empty() {
+            return None;
+        }
+
+        Some(self.graph.nodes.remove(0).index)
+    }
+}
+
+impl<T: Clone> IntoIterator for RcGraph<T> {
+    type Item = <RcGraph<T> as Graph>::NodeReference;
+
+    type IntoIter = GraphIntoIterator<RcGraph<T>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        GraphIntoIterator {graph: self}
     }
 }
 
@@ -399,6 +440,41 @@ pub mod test {
 
         assert_eq!(aoc.len(), 1);
         assert_eq!(aoc[0].0, 2);
+    }
+
+    #[test]
+    fn can_use_iter() {
+        let mut graph = RcGraph::new();
+
+        graph.add_node("One!");
+        graph.add_node("Two!");
+        graph.add_node("Three!");
+    
+        let mut values = Vec::new();
+
+        for index in graph.iter() {
+            values.push(*graph.get_data(index).unwrap());
+        }
+
+        assert_eq!(values.len(), 3);
+        assert_eq!(&values, &["One!", "Two!", "Three!"]);
+    }
+
+    #[test]
+    fn can_use_into_iter() {
+        let mut graph = RcGraph::new();
+
+        graph.add_node("One!");
+        graph.add_node("Two!");
+        graph.add_node("Three!");
+    
+        let mut indices = Vec::new();
+
+        for index in graph {
+            indices.push(index);
+        }
+
+        assert_eq!(indices.len(), 3);
     }
 
     #[test]
