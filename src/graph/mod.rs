@@ -291,6 +291,15 @@ pub struct NodeIndex(pub usize);
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct EdgeIndex(pub usize);
 
+pub struct GraphIterator<'a, T> where T: Graph + Sized {
+    graph: &'a T,
+    index: usize
+}
+
+pub struct GraphIntoIterator<T> where T: Graph + Sized {
+    graph: T
+}
+
 pub mod grid;
 pub mod rc_graph;
 pub mod vec_graph;

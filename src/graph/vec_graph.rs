@@ -1,10 +1,9 @@
 #![allow(dead_code)]
-
 use crate::{
     direction::relative_direction::RelativeDirection, geometry::point::Point2D, iter_ext::IterExt,
 };
 
-use super::{EdgeIndex, Graph, NodeIndex};
+use super::{EdgeIndex, Graph, GraphIntoIterator, GraphIterator, NodeIndex};
 
 // An implementation of a graph datastructure, using vectors to store nodes and edges.
 // Based on: https://smallcultfollowing.com/babysteps/blog/2015/04/06/modeling-graphs-in-rust-using-vector-indices/
@@ -109,6 +108,41 @@ impl<T> Graph for VecGraph<T> {
     }
 }
 
+impl<'a, T> Iterator for GraphIterator<'a, VecGraph<T>> {
+    type Item = &'a <VecGraph<T> as Graph>::NodeReference;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index < self.graph.nodes.len() {
+            self.index += 1;
+            Some(&self.graph.nodes[self.index - 1].index)
+        } else {
+            None
+        }
+    }
+}
+
+impl<T> Iterator for GraphIntoIterator<VecGraph<T>> {
+    type Item = <VecGraph<T> as Graph>::NodeReference;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.graph.nodes.is_empty() {
+            return None;
+        }
+
+        Some(self.graph.nodes.remove(0).index)
+    }
+}
+
+impl<T> IntoIterator for VecGraph<T> {
+    type Item = <VecGraph<T> as Graph>::NodeReference;
+
+    type IntoIter = GraphIntoIterator<VecGraph<T>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        GraphIntoIterator {graph: self}
+    }
+}
+
 impl<T> VecGraph<T> {
     /// Return a [`Successors`] that can be used to iterate over the nodes that are connected to 'source'.
     ///
@@ -127,6 +161,10 @@ impl<T> VecGraph<T> {
         } else {
             panic!("Source not not found!");
         }
+    }
+
+    pub fn iter(&self) -> GraphIterator<VecGraph<T>> {
+        GraphIterator { graph: self, index: 0 }
     }
 }
 
@@ -291,6 +329,42 @@ pub mod test {
 
         assert_eq!(odd.len(), 3);
         assert_eq!(&odd, &[o1, o2, o3]);
+    }
+
+    #[test]
+    fn can_iterate_node_indices_reference() {
+        let mut graph: VecGraph<usize> = VecGraph::new();
+
+        graph.add_node(1);
+        graph.add_node(2);
+        graph.add_node(3);
+        graph.add_node(4);
+
+        let mut graph_data = Vec::new();
+        for node in graph.iter() {
+            graph_data.push(*graph.get_data(node).unwrap());
+        }
+
+        assert_eq!(graph_data.len(), 4);
+        assert_eq!(&graph_data, &[1, 2, 3, 4]);
+    }
+
+    #[test]
+    fn can_iterate_with_into_iter() {
+        let mut graph: VecGraph<usize> = VecGraph::new();
+
+        graph.add_node(1);
+        graph.add_node(2);
+        graph.add_node(3);
+        graph.add_node(4);
+
+        let mut indices = Vec::new();
+
+        for node in graph {
+            indices.push(node);
+        }
+
+        assert_eq!(indices.len(), 4);
     }
 
     #[test]
