@@ -106,8 +106,41 @@ impl<T> Graph for VecGraph<T> {
             .map(|node| node.index)
             .collect()
     }
-}
 
+    fn to_dot_file<N, S>(&self, node_name_fn: N, node_style_fn: S) -> String
+    where
+        N: Fn(&Self::DataType) -> String,
+        S: Fn(&Self::DataType) -> String,
+    {
+        let mut graphviz = String::from("digraph {\n");
+
+        self.nodes.iter().for_each(|node| {
+            let name = node_name_fn(&node.data);
+            let style = node_style_fn(&node.data);
+            graphviz.push_str(format!(" {} [{}]\n", name, style).as_str());
+        });
+
+        graphviz.push('\n');
+
+        #[allow(clippy::redundant_closure)]
+        self.nodes.iter().for_each(|node| {
+            let neighbors = self
+                .get_neighbors(&node.index)
+                .iter()
+                .map(|n| self.get_data(n).unwrap())
+                .map(|d| node_name_fn(d))
+                .collect_vec().join(" ");
+
+            let name = node_name_fn(&node.data);
+
+            graphviz.push_str(format!(" {} -> {{ {} }}\n", name, neighbors).as_str());
+
+        });
+
+        graphviz.push('}');
+        graphviz
+    }
+}
 
 impl<'a, T> Iterator for GraphIterator<'a, VecGraph<T>> {
     type Item = &'a <VecGraph<T> as Graph>::NodeReference;
@@ -140,7 +173,7 @@ impl<T> IntoIterator for VecGraph<T> {
     type IntoIter = GraphIntoIterator<VecGraph<T>>;
 
     fn into_iter(self) -> Self::IntoIter {
-        GraphIntoIterator {graph: self}
+        GraphIntoIterator { graph: self }
     }
 }
 
@@ -164,30 +197,32 @@ impl<T> VecGraph<T> {
         }
     }
 
-
     /// Returns a [`GraphIterator<VecGraph<T>>`] which can be used to iterate over the node references in this graph.
-    /// 
-    /// # Example: 
-    /// 
+    ///
+    /// # Example:
+    ///
     /// ```
     /// use aoc_helper::graph::{Graph, vec_graph::VecGraph};
     /// let mut graph: VecGraph<usize> = VecGraph::new();
-    /// 
+    ///
     /// graph.add_node(1);
     /// graph.add_node(2);
     /// graph.add_node(3);
     /// graph.add_node(4);
-    /// 
+    ///
     /// let mut graph_data = Vec::new();
     /// for node in graph.iter() {
     ///     graph_data.push(*graph.get_data(node).unwrap());
     /// }
-    /// 
+    ///
     /// assert_eq!(graph_data.len(), 4);
     /// assert_eq!(&graph_data, &[1, 2, 3, 4]);
     /// ```
     pub fn iter(&self) -> GraphIterator<VecGraph<T>> {
-        GraphIterator { graph: self, index: 0 }
+        GraphIterator {
+            graph: self,
+            index: 0,
+        }
     }
 }
 
@@ -229,6 +264,8 @@ struct EdgeData {
 #[cfg(test)]
 pub mod test {
     use std::collections::HashMap;
+
+    use regex::Regex;
 
     use crate::{direction::Direction, geometry::point::Point2D};
 
@@ -388,6 +425,35 @@ pub mod test {
         }
 
         assert_eq!(indices.len(), 4);
+    }
+
+    #[test]
+    fn can_create_dot_file() {
+        // Not exactly sure how to test that the generated dot file is correct
+        // Current idea: use regex
+
+        let mut graph = VecGraph::new();
+
+        let n1 = graph.add_node(1);
+        let n2 = graph.add_node(2);
+        let n3 = graph.add_node(3);
+
+        graph.add_edge(n1, n2);
+        graph.add_edge(n1, n3);
+
+        let name_fn = |d: &i32| d.to_string();
+        let style_fn = |d: &i32| {
+            if *d == 1 {
+                "color=\"red\" shape=\"square\"".to_string()
+            } else {
+                "shape=\"circle\"".to_string()
+            }
+        };
+
+        let graphviz = graph.to_dot_file(name_fn, style_fn);
+
+        let re = Regex::new(r"digraph \{\n 1 \[color=.red. shape=.square.]\n( [2|3] \[shape=.circle.\]\n){2}\n 1 -> \{ 3 2 \}\n( [2|3] -> \{  \}\n){2}\}").unwrap();
+        assert!(re.is_match(&graphviz));
     }
 
     #[test]

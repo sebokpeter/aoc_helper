@@ -3,7 +3,7 @@ use std::{collections::HashMap, hash::Hash};
 use priority_queue::DoublePriorityQueue;
 
 // Represents a set of nodes connected by edges
-pub trait Graph : IntoIterator {
+pub trait Graph: IntoIterator {
     type DataType; // Type of the data contained in each node
     type NodeReference: Hash + Eq + Clone + Copy;
     type EdgeReference;
@@ -62,6 +62,18 @@ pub trait Graph : IntoIterator {
 
     /// Get the [NodeReferences] of all neighbors of [node].
     fn get_neighbors(&self, node: &Self::NodeReference) -> Vec<Self::NodeReference>;
+
+    /// Create a simple dot file that describes this graph using [Graphviz](https://graphviz.org/docs/attrs/area/).
+    /// The closure `node_name_fn` is used to decide the display name of the nodes.
+    /// The closure `node_style_fn` is used to customize nodes. It is invoked once for each node in the graph, and is expected to return a string that is a valid node attribute in Graphviz.
+    /// # Arguments
+    ///
+    /// * `node_name_fn`: A closure that is used to customize the display name of a node in the Graphviz graph.
+    /// * `node_style_fn`: A closure that is used to customize the look of nodes using the data stored in the node.
+    fn to_dot_file<N, S>(&self, node_name_fn: N, node_style_fn: S) -> String
+    where
+        N: Fn(&Self::DataType) -> String,
+        S: Fn(&Self::DataType) -> String;
 
     /// Search the graph for the shortest path between `start` and `target`, using Dijkstra’s Algorithm.
     /// Each node in the graph must have a cost associated with it.
@@ -187,7 +199,7 @@ pub trait Graph : IntoIterator {
         S: Fn(&Self::DataType) -> bool,
         D: Fn(&Self::DataType) -> bool,
         C: Fn(&Self::DataType) -> usize,
-        Self: Sized
+        Self: Sized,
     {
         let frontier_indices = self.find_nodes(frontier_fn);
 
@@ -291,13 +303,19 @@ pub struct NodeIndex(pub usize);
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct EdgeIndex(pub usize);
 
-pub struct GraphIterator<'a, T> where T: Graph + Sized {
+pub struct GraphIterator<'a, T>
+where
+    T: Graph + Sized,
+{
     graph: &'a T,
-    index: usize
+    index: usize,
 }
 
-pub struct GraphIntoIterator<T> where T: Graph + Sized {
-    graph: T
+pub struct GraphIntoIterator<T>
+where
+    T: Graph + Sized,
+{
+    graph: T,
 }
 
 pub mod grid;

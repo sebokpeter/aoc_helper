@@ -3,9 +3,7 @@ use std::fmt::Display;
 
 use crate::direction::{relative_direction::RelativeDirection, Direction};
 
-use super::{
-    vec_graph::VecGraph, EdgeIndex, Graph, GraphIntoIterator, NodeIndex
-};
+use super::{vec_graph::VecGraph, EdgeIndex, Graph, GraphIntoIterator, NodeIndex};
 
 // A grid is a specialized form of a graph, where each node can connect to two (if the node is on the corners), three (if the node is on the edge), or four other nodes.
 pub struct Grid<T: Clone> {
@@ -88,6 +86,14 @@ impl<T: Clone> Graph for Grid<T> {
         F: Fn(&Self::DataType) -> bool,
     {
         self.graph.find_nodes(predicate)
+    }
+
+    fn to_dot_file<N, S>(&self, node_name_fn: N, node_style_fn: S) -> String
+    where
+        N: Fn(&Self::DataType) -> String,
+        S: Fn(&Self::DataType) -> String,
+    {
+        self.graph.to_dot_file(node_name_fn, node_style_fn)
     }
 }
 
@@ -194,7 +200,7 @@ impl<T: Clone + Display> Grid<T> {
     }
 }
 
-impl<T:Clone> IntoIterator for Grid<T> {
+impl<T: Clone> IntoIterator for Grid<T> {
     type Item = <Self as Graph>::NodeReference;
 
     type IntoIter = GraphIntoIterator<VecGraph<T>>;
@@ -332,8 +338,8 @@ pub mod test {
         let data = vec![vec![1, 1], vec![9, 1]];
 
         let grid = Grid::new_from_data(data);
-    
-        let mut indices = Vec::new(); 
+
+        let mut indices = Vec::new();
 
         for index in grid {
             indices.push(index);
@@ -341,5 +347,5 @@ pub mod test {
 
         assert_eq!(indices.len(), 4);
         assert_eq!(&indices.iter().map(|i| i.0).collect_vec(), &[0, 1, 2, 3]);
-    } 
+    }
 }
