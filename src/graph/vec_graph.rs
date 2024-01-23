@@ -108,6 +108,7 @@ impl<T> Graph for VecGraph<T> {
     }
 }
 
+
 impl<'a, T> Iterator for GraphIterator<'a, VecGraph<T>> {
     type Item = &'a <VecGraph<T> as Graph>::NodeReference;
 
@@ -134,7 +135,7 @@ impl<T> Iterator for GraphIntoIterator<VecGraph<T>> {
 }
 
 impl<T> IntoIterator for VecGraph<T> {
-    type Item = <VecGraph<T> as Graph>::NodeReference;
+    type Item = <Self as Graph>::NodeReference;
 
     type IntoIter = GraphIntoIterator<VecGraph<T>>;
 
@@ -163,6 +164,28 @@ impl<T> VecGraph<T> {
         }
     }
 
+
+    /// Returns a [`GraphIterator<VecGraph<T>>`] which can be used to iterate over the node references in this graph.
+    /// 
+    /// # Example: 
+    /// 
+    /// ```
+    /// use aoc_helper::graph::{Graph, vec_graph::VecGraph};
+    /// let mut graph: VecGraph<usize> = VecGraph::new();
+    /// 
+    /// graph.add_node(1);
+    /// graph.add_node(2);
+    /// graph.add_node(3);
+    /// graph.add_node(4);
+    /// 
+    /// let mut graph_data = Vec::new();
+    /// for node in graph.iter() {
+    ///     graph_data.push(*graph.get_data(node).unwrap());
+    /// }
+    /// 
+    /// assert_eq!(graph_data.len(), 4);
+    /// assert_eq!(&graph_data, &[1, 2, 3, 4]);
+    /// ```
     pub fn iter(&self) -> GraphIterator<VecGraph<T>> {
         GraphIterator { graph: self, index: 0 }
     }

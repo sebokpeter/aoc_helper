@@ -3,7 +3,7 @@ use std::{collections::HashMap, hash::Hash};
 use priority_queue::DoublePriorityQueue;
 
 // Represents a set of nodes connected by edges
-pub trait Graph {
+pub trait Graph : IntoIterator {
     type DataType; // Type of the data contained in each node
     type NodeReference: Hash + Eq + Clone + Copy;
     type EdgeReference;

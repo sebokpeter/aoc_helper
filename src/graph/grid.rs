@@ -1,8 +1,10 @@
 #![allow(dead_code)]
+use std::fmt::Display;
+
 use crate::direction::{relative_direction::RelativeDirection, Direction};
 
 use super::{
-    vec_graph::{Successors, VecGraph}, EdgeIndex, Graph, GraphIntoIterator, NodeIndex
+    vec_graph::VecGraph, EdgeIndex, Graph, GraphIntoIterator, NodeIndex
 };
 
 // A grid is a specialized form of a graph, where each node can connect to two (if the node is on the corners), three (if the node is on the edge), or four other nodes.
@@ -122,10 +124,6 @@ impl<T: Clone> Grid<T> {
         }
     }
 
-    pub fn successors(&self, source: NodeIndex) -> Successors<T> {
-        self.graph.successors(source)
-    }
-
     /// Return the first [`NodeIndex`], if it exists.
     pub fn first_index(&self) -> Option<NodeIndex> {
         if let Some(indices) = &self.node_indices {
@@ -160,7 +158,7 @@ impl<T: Clone> Grid<T> {
     }
 }
 
-impl<T: Clone + std::fmt::Display> Grid<T> {
+impl<T: Clone + Display> Grid<T> {
     pub fn print(&self) {
         if let Some(data) = &self.node_indices {
             for row in data {

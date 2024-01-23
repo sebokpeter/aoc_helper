@@ -171,7 +171,7 @@ impl<T: Clone> Iterator for GraphIntoIterator<RcGraph<T>> {
 }
 
 impl<T: Clone> IntoIterator for RcGraph<T> {
-    type Item = <RcGraph<T> as Graph>::NodeReference;
+    type Item = <Self as Graph>::NodeReference;
 
     type IntoIter = GraphIntoIterator<RcGraph<T>>;
 
