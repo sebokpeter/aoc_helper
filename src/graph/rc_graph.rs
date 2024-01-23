@@ -137,15 +137,53 @@ impl<T: Clone> Graph for RcGraph<T> {
             .map(|node| node.index)
             .collect()
     }
+
+    fn to_dot_file<N, S>(&self, node_name_fn: N, node_style_fn: S) -> String
+    where
+        N: Fn(&Self::DataType) -> String,
+        S: Fn(&Self::DataType) -> String,
+    {
+        // TODO: this is the same implementation as in VecGraph<T>. Try to move them to trait.
+        let mut graphviz = String::from("digraph {\n");
+
+        self.nodes.iter().for_each(|node| {
+            let name = node_name_fn(&node.data);
+            let style = node_style_fn(&node.data);
+            graphviz.push_str(format!(" {} [{}]\n", name, style).as_str());
+        });
+
+        graphviz.push('\n');
+
+        #[allow(clippy::redundant_closure)]
+        self.nodes.iter().for_each(|node| {
+            let neighbors = self
+                .get_neighbors(&node.index)
+                .iter()
+                .map(|n| self.get_data(n).unwrap())
+                .map(|d| node_name_fn(d))
+                .collect_vec().join(" ");
+
+            let name = node_name_fn(&node.data);
+
+            graphviz.push_str(format!(" {} -> {{ {} }}\n", name, neighbors).as_str());
+
+        });
+
+        graphviz.push('}');
+        graphviz
+    }
 }
 
 impl<T: Clone> RcGraph<T> {
     pub fn iter(&self) -> GraphIterator<RcGraph<T>> {
-        GraphIterator { graph: self, index: 0 }
+        GraphIterator {
+            graph: self,
+            index: 0,
+        }
     }
 }
 
-impl<'a, T:Clone> Iterator for GraphIterator<'a, RcGraph<T>> {
+impl<'a, T: Clone> Iterator for GraphIterator<'a, RcGraph<T>> {
     type Item = &'a <RcGraph<T> as Graph>::NodeReference;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -176,7 +214,7 @@ impl<T: Clone> IntoIterator for RcGraph<T> {
     type IntoIter = GraphIntoIterator<RcGraph<T>>;
 
     fn into_iter(self) -> Self::IntoIter {
-        GraphIntoIterator {graph: self}
+        GraphIntoIterator { graph: self }
     }
 }
 
@@ -192,6 +230,8 @@ where
 
 #[cfg(test)]
 pub mod test {
+    use regex::Regex;
+
     use super::*;
 
     #[test]
@@ -449,7 +489,7 @@ pub mod test {
         graph.add_node("One!");
         graph.add_node("Two!");
         graph.add_node("Three!");
-    
+
         let mut values = Vec::new();
 
         for index in graph.iter() {
@@ -467,7 +507,7 @@ pub mod test {
         graph.add_node("One!");
         graph.add_node("Two!");
         graph.add_node("Three!");
-    
+
         let mut indices = Vec::new();
 
         for index in graph {
@@ -475,6 +515,32 @@ pub mod test {
         }
 
         assert_eq!(indices.len(), 3);
+    }
+
+    #[test]
+    fn can_create_dot_file() {
+        let mut graph = RcGraph::new();
+
+        let n1 = graph.add_node("Hello");
+        let n2 = graph.add_node("World");
+        let n3 = graph.add_node("Graph");
+
+        graph.add_edge(n1, n2);
+        graph.add_edge(n1, n3);
+
+        let name_fn = |d: &&str| d.to_string();
+        let style_fn = |d: &&str| {
+            if *d == "Hello" {
+                "color=\"red\" shape=\"square\"".to_string()
+            } else {
+                "shape=\"circle\"".to_string()
+            }
+        };
+
+        let graphviz = graph.to_dot_file(name_fn, style_fn);
+
+        let re = Regex::new(r"digraph \{\n Hello \[color=.red. shape=.square.\]\n (World \[shape=.circle.\]\n) (Graph \[shape=.circle.\]\n)\n Hello -> \{ World Graph }\n World -> \{  \}\n Graph .> \{  \}\n\}").unwrap();
+        assert!(re.is_match(&graphviz));
     }
 
     #[test]

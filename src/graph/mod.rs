@@ -70,6 +70,32 @@ pub trait Graph: IntoIterator {
     ///
     /// * `node_name_fn`: A closure that is used to customize the display name of a node in the Graphviz graph.
     /// * `node_style_fn`: A closure that is used to customize the look of nodes using the data stored in the node.
+    /// 
+    /// # Example:
+    /// 
+    /// ```
+    /// use aoc_helper::graph::{Graph, vec_graph::VecGraph};
+    /// let mut graph = VecGraph::new();
+    ///
+    /// let n1 = graph.add_node(1);
+    /// let n2 = graph.add_node(2);
+    /// let n3 = graph.add_node(3);
+    ///
+    /// graph.add_edge(n1, n2);
+    /// graph.add_edge(n1, n3);
+    ///
+    /// let name_fn = |d: &i32| d.to_string();
+    /// let style_fn = |d: &i32| {
+    ///     if *d == 1 {
+    ///         "color=\"red\" shape=\"square\"".to_string()
+    ///      } else {
+    ///         "shape=\"circle\"".to_string()
+    ///      }
+    /// };
+    ///
+    /// let graphviz = graph.to_dot_file(name_fn, style_fn);
+    /// 
+    /// ```
     fn to_dot_file<N, S>(&self, node_name_fn: N, node_style_fn: S) -> String
     where
         N: Fn(&Self::DataType) -> String,
