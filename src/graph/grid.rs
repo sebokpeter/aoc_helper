@@ -2,8 +2,7 @@
 use crate::direction::{relative_direction::RelativeDirection, Direction};
 
 use super::{
-    vec_graph::{Successors, VecGraph},
-    EdgeIndex, Graph, NodeIndex,
+    vec_graph::{Successors, VecGraph}, EdgeIndex, Graph, GraphIntoIterator, NodeIndex
 };
 
 // A grid is a specialized form of a graph, where each node can connect to two (if the node is on the corners), three (if the node is on the edge), or four other nodes.
@@ -84,7 +83,8 @@ impl<T: Clone> Graph for Grid<T> {
 
     fn find_nodes<F>(&self, predicate: F) -> Vec<Self::NodeReference>
     where
-        F: Fn(&Self::DataType) -> bool {
+        F: Fn(&Self::DataType) -> bool,
+    {
         self.graph.find_nodes(predicate)
     }
 }
@@ -153,6 +153,11 @@ impl<T: Clone> Grid<T> {
             None
         }
     }
+
+    /// Returns a reference to underlying graph of this [`Grid<T>`].
+    pub fn get_underlying_graph(&self) -> &VecGraph<T> {
+        &self.graph
+    }
 }
 
 impl<T: Clone + std::fmt::Display> Grid<T> {
@@ -184,6 +189,20 @@ impl<T: Clone + std::fmt::Display> Grid<T> {
         } else {
             println!("EMPTY");
         }
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &<Self as Graph>::NodeReference> {
+        self.graph.iter() // Delegate the iteration to the underlying graph
+    }
+}
+
+impl<T:Clone> IntoIterator for Grid<T> {
+    type Item = <Self as Graph>::NodeReference;
+
+    type IntoIter = GraphIntoIterator<VecGraph<T>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.graph.into_iter()
     }
 }
 
@@ -232,6 +251,8 @@ where
 
 #[cfg(test)]
 pub mod test {
+    use crate::iter_ext::IterExt;
+
     use super::*;
 
     #[test]
@@ -291,4 +312,36 @@ pub mod test {
         assert_eq!(path[3].0, 7);
         assert_eq!(path[4].0, 8);
     }
+
+    #[test]
+    fn can_use_iter() {
+        let data = vec![vec![1, 1, 9], vec![9, 1, 9], vec![9, 1, 1]];
+
+        let grid = Grid::new_from_data(data);
+
+        let mut values = Vec::new();
+
+        for index in grid.iter() {
+            values.push(*grid.get_data(index).unwrap());
+        }
+
+        assert_eq!(values.len(), 9);
+        assert_eq!(&values, &[1, 1, 9, 9, 1, 9, 9, 1, 1]);
+    }
+
+    #[test]
+    fn can_use_into_iterator() {
+        let data = vec![vec![1, 1], vec![9, 1]];
+
+        let grid = Grid::new_from_data(data);
+    
+        let mut indices = Vec::new(); 
+
+        for index in grid {
+            indices.push(index);
+        }
+
+        assert_eq!(indices.len(), 4);
+        assert_eq!(&indices.iter().map(|i| i.0).collect_vec(), &[0, 1, 2, 3]);
+    } 
 }
